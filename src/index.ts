@@ -27,6 +27,26 @@ async function main() {
   const app = express();
   app.use(express.json());
 
+  // Bearer-Token-Auth fuer /mcp: wenn MCP_TOKEN gesetzt, muss jeder Call
+  // einen passenden Authorization-Header mitbringen. Ohne MCP_TOKEN laeuft
+  // der Server offen (Dev-Modus). Railway-Healthchecks unter anderen Pfaden
+  // (z.B. /health) bleiben unbeeintraechtigt, weil die Middleware auf /mcp
+  // eingeschraenkt ist.
+  const MCP_TOKEN = process.env.MCP_TOKEN;
+  if (MCP_TOKEN) {
+    app.use("/mcp", (req, res, next) => {
+      const auth = req.headers.authorization;
+      if (auth !== `Bearer ${MCP_TOKEN}`) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      next();
+    });
+    console.error("MCP_TOKEN gesetzt, Bearer-Auth aktiv fuer /mcp");
+  } else {
+    console.error("WARNUNG: MCP_TOKEN nicht gesetzt, /mcp ist offen zugaenglich");
+  }
+
   const transports = new Map<string, StreamableHTTPServerTransport>();
 
   app.post("/mcp", async (req, res) => {
