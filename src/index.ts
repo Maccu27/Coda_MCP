@@ -9,8 +9,15 @@ import { randomUUID } from "crypto";
 
 async function main() {
   // Initialize Axios Client
+  // timeout 30s verhindert unendliches Haengen bei Coda-Latenz-Spitzen.
+  // Ohne timeout wartet axios per Default ewig, der MCP-Aufruf schlaegt dann als
+  // "timeout" beim Client auf, obwohl der Server nie eine saubere Fehler-Response
+  // wirft. Nach Post-Rebrand (Coda -> Superhuman Docs, 08.07.2026) haben wir
+  // sporadische Latenzen bei list_rows/delete_page gesehen; 30s deckt normale
+  // Backend-Trage ab, ohne Retry-Sturm zu triggern.
   client.setConfig({
     baseURL: "https://coda.io/apis/v1",
+    timeout: 30000,
     headers: {
       Authorization: `Bearer ${config.apiKey}`,
     },

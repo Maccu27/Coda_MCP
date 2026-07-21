@@ -1,6 +1,6 @@
 {
   "name": "coda-mcp",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "MCP Server for Coda",
   "repository": {
     "url": "https://github.com/orellazri/coda-mcp"
@@ -24,7 +24,7 @@
   "dependencies": {
     "@hey-api/client-axios": "^0.7.0",
     "@modelcontextprotocol/sdk": "1.11.2",
-    "axios": "^1.9.0",
+    "axios": "1.14.0",
     "express": "^4.18.0",
     "zod": "^3.24.4"
   },
