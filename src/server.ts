@@ -39,6 +39,19 @@ export const server = new McpServer({
   },
 });
 
+// Reduziert die list_rows-Antwort auf das Nötige: pro Zeile id, name, values.
+// Verworfen wird der Envelope-Ballast (type, href, index, createdAt, updatedAt,
+// browserLink), der pro Zeile Tokens kostet und selten gebraucht wird. Der
+// Zugriffspfad data.items[i].values[col] bleibt unveraendert, ebenso die
+// Paginierung ueber nextPageToken. Fuer das volle Objekt: fields="voll".
+function slimRows(data: any): any {
+  if (!data || !Array.isArray(data.items)) return data;
+  return {
+    items: data.items.map((r: any) => ({ id: r.id, name: r.name, values: r.values })),
+    ...(data.nextPageToken ? { nextPageToken: data.nextPageToken } : {}),
+  };
+}
+
 // ============================================================================
 // DOCUMENT OPERATIONS
 // ============================================================================
@@ -550,7 +563,7 @@ server.tool(
 
 server.tool(
   "coda_list_rows",
-  "List rows in a table with optional filtering and pagination",
+  "List rows in a table with optional filtering and pagination. Returns slim rows by default (id, name, values) plus nextPageToken, which saves tokens. Set fields='voll' when you need the full row envelope (href, index, createdAt, updatedAt, browserLink).",
   {
     docId: z.string().describe("The ID of the document containing the table"),
     tableIdOrName: z.string().describe("The ID or name of the table to list rows from"),
@@ -559,8 +572,9 @@ server.tool(
     sortBy: z.enum(["createdAt", "natural", "updatedAt"]).optional().describe("How to sort the results"),
     useColumnNames: z.boolean().optional().describe("Use column names instead of IDs in output"),
     visibleOnly: z.boolean().optional().describe("Return only visible rows and columns"),
+    fields: z.enum(["schlank", "voll"]).optional().describe("schlank (default) = per row only id, name, values; saves tokens. voll = full API object incl. href, index, createdAt, updatedAt, browserLink."),
   },
-  async ({ docId, tableIdOrName, query, limit, sortBy, useColumnNames, visibleOnly }): Promise<CallToolResult> => {
+  async ({ docId, tableIdOrName, query, limit, sortBy, useColumnNames, visibleOnly, fields }): Promise<CallToolResult> => {
     try {
       const resp = await listRows({
         path: { docId, tableIdOrName },
@@ -568,7 +582,8 @@ server.tool(
         throwOnError: true,
       });
 
-      return { content: [{ type: "text", text: JSON.stringify(resp.data, null, 2) }] };
+      const out = fields === "voll" ? resp.data : slimRows(resp.data);
+      return { content: [{ type: "text", text: JSON.stringify(out, null, 2) }] };
     } catch (error) {
       return { content: [{ type: "text", text: `Failed to list rows : ${error instanceof Error ? error.message : String(error)}` }], isError: true };
     }
